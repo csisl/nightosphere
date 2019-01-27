@@ -1,0 +1,35 @@
+#!/bin/bash
+set -e
+
+# usage: bash scraper [file]
+# this script will convert data captured by wireshark as C Arrays
+# to a python script that will convert it to binary data for extracting
+# the source code 
+
+# pass in the file that contains the data 
+if [ $# -ne 1 ]; then 
+	echo "usage: bash scraper [file]"
+	exit 1
+fi
+
+file=$1
+
+# begin converting the data to python format
+sed -i 's/0x/\\x/g' $file
+sed -i 's/, //g' $file
+sed -i '/^char/d' $file
+sed -i 's/ };//' $file
+sed -i 's/^/"/' $file
+sed -i 's/$/"/' $file
+sed -i '1s/^/import sys\n/' $file
+sed -i '2s/^/data=\(/' $file
+sed -i '$a\)' $file
+sed -i '$asys.stdout.write\(data\)' $file
+
+# binary data
+output='data.out'
+
+python $file > $output
+file $output
+tar -xf $output
+ls -lt
