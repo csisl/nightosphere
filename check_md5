@@ -11,6 +11,8 @@
 # file: *.md5
 # [md5sum] [filename]
 
+incorrect_count=0
+cf=()
 for file in $PWD/*; do
 	
 	if [[ $file == *".md5" ]]; then
@@ -44,6 +46,15 @@ for file in $PWD/*; do
 	if [ $file_md5 == $org_md5 ]; then
 		echo -e "\e[32mCORRECT md5 for: $sfile\e[39m"
 	else
-		echo -e "\e[32mINCORRECT md5 for: $sfile\e[39m"
+		((incorrect_count++))
+		cf+=($sfile)
+		echo -e "\e[31mINCORRECT md5 for: $sfile\e[39m"
 	fi
 done
+
+if [ $incorrect_count -gt 0 ]; then 
+	echo "$incorrect_count files are corrupt"
+	for f in "${cf[@]}"; do
+		echo $f
+	done
+fi
