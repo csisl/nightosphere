@@ -9,10 +9,15 @@
 
 # assume the md5sums are in a file in the following format:
 # file: *.md5
+# content in the file is in the format:
 # [md5sum] [filename]
 
+# a tab to keep count of the number of files that do not have correct md5's
 incorrect_count=0
+# array to for files with incorrect md5's
 cf=()
+
+# begin comparing actual md5sum's with the given md5sum
 for file in $PWD/*; do
 	
 	if [[ $file == *".md5" ]]; then
@@ -23,22 +28,22 @@ for file in $PWD/*; do
 	fi
 	 
 	# get the file contents
+	# [md5sum] [filename]
 	filec=$(cat $file)
 
 	# begin parsing the data in the file 
 
-	# get the original md5sum
+	# get the original md5sum from the .md5 file
 	org_md5=${filec:0:32}
 
-	# get the filename inside the md5sum file
+	# get the filename inside the .md5 file
 	sfile=${filec:32}
 
-	# get the contents of the file 
+	# get the md5sum of the file extracted from the md5 file
 	sfile_con=$(md5sum $sfile)
-
-	# get the md5sum of the original file 
 	file_md5=${sfile_con:0:32}
 
+	# let the user know what was processed
 	echo "ORIGIN MD5:  $org_md5"
 	echo "FILE         $sfile"
 	echo "FILE MD5:    $file_md5"
@@ -47,13 +52,17 @@ for file in $PWD/*; do
 		echo -e "\e[32mCORRECT md5 for: $sfile\e[39m"
 	else
 		((incorrect_count++))
+		# add corrupt files to the corrupt file array
 		cf+=($sfile)
 		echo -e "\e[31mINCORRECT md5 for: $sfile\e[39m"
 	fi
 done
 
+# if there were any corrupt files, let the user know
 if [ $incorrect_count -gt 0 ]; then 
 	echo "$incorrect_count files are corrupt"
+	
+	# display all the files that are corrupt to the user
 	for f in "${cf[@]}"; do
 		echo $f
 	done
