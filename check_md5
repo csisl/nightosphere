@@ -3,8 +3,8 @@
 # usage: bash check_m5d 
 
 # the purpose of this script is to check the integrity of multiple
-# files in one directory with a provided md5sum that is in that 
-# same directory 
+# files by cross referencing the expected md5sum of a file assuming it has been
+# provided to you by your source, and the actual md5sum of the file you have 
 
 
 # assume the md5sums are in a file in the following format:
