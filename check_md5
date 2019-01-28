@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# usage: bash check_m5d 
+
+# the purpose of this script is to check the integrity of multiple
+# files in one directory with a provided md5sum that is in that 
+# same directory 
+
+
+# assume the md5sums are in a file in the following format:
+# file: *.md5
+# [md5sum] [filename]
+
+for file in $PWD/*; do
+	
+	if [[ $file == *".md5" ]]; then
+		# file doesn't match desired pattern, do not process
+		echo ""
+	else
+		continue
+	fi
+	 
+	# get the file contents
+	filec=$(cat $file)
+
+	# begin parsing the data in the file 
+
+	# get the original md5sum
+	org_md5=${filec:0:32}
+
+	# get the filename inside the md5sum file
+	sfile=${filec:32}
+
+	# get the contents of the file 
+	sfile_con=$(md5sum $sfile)
+
+	# get the md5sum of the original file 
+	file_md5=${sfile_con:0:32}
+
+	echo "ORIGIN MD5:  $org_md5"
+	echo "FILE         $sfile"
+	echo "FILE MD5:    $file_md5"
+
+	if [ $file_md5 == $org_md5 ]; then
+		echo -e "\e[32mCORRECT md5 for: $sfile\e[39m"
+	else
+		echo -e "\e[32mINCORRECT md5 for: $sfile\e[39m"
+	fi
+done
