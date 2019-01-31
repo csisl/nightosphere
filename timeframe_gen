@@ -1,0 +1,25 @@
+#!/bin/bash
+set -e 
+
+# usage: bash timeframe image start_date end_date [type]
+#	date format: YYYY-MM-DD
+# type is optional, the default is file (f)
+
+# get files touched between a provided timeframe on a mounted image
+
+if [ $# -lt 3 ]; then
+	echo "usage: bash timeframe image start_date end_date [type]"
+	exit
+fi
+
+img=$1		# image (/mnt/)
+sd=$2		# start date
+ed=$3		# end date 
+
+if [ $# -eq 3 ]; then
+	ftype="f"
+else
+	ftype=$4	# find type flag, default is files 
+fi
+
+find $img -type $ftype -newermt "$sd" \! -newermt "$ed"
