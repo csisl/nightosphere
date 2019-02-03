@@ -7,19 +7,74 @@ set -e
 
 # get files touched between a provided timeframe on a mounted image
 
-if [ $# -lt 3 ]; then
-	echo "usage: bash timeframe image start_date end_date [type]"
-	exit
-fi
+traverse_options(){
+	echo -e "\n\t\e[32mContinue traversing? [y/n] \e[39m"
+	read cont
 
-img=$1		# image (/mnt/)
-sd=$2		# start date
-ed=$3		# end date 
+	if [ "$cont" = "y" ]; then
+		# continue traversing
+		echo -e "\n\e[34mChoose a directory to go into: \e[39m"
+		traverse $1 $2 $3
+	elif [ "$cont" = "n" ]; then
+		echo -e "\n\t\e[32mWould you like to list files that have been modified during this timeframe? [y/n] \e[39m\n"
+		read ans
+		if [ "$ans" = "y" ]; then
+			list_files $1 $2 $3
+		else
+			echo "goodbye"
+			exit
+		fi
+	else 
+		echo "Invalid option"
+		exit
+	fi
+}
 
-if [ $# -eq 3 ]; then
-	ftype="f"
-else
-	ftype=$4	# find type flag, default is files 
-fi
+traverse() {
+	echo -e "\n"
+	find $1 -type d -newermt "$2" \! -newermt "$3"
+	echo -e "\n\t\e[32mDirectory: [/dir]\e[39m"
+	read dir
+	dir=$(find $dir -type d -newermt "$2" \! -newermt "$3" )
+	echo -e "\e[32m$dir\e[39m"
+	while true; do 
+		traverse_options $dir $2 $3
+	done
+}
 
-find $img -type $ftype -newermt "$sd" \! -newermt "$ed"
+list_files() {
+	echo -e "\n"
+	find $1 -type f -newermt "$2" \! -newermt "$3"
+}
+
+main(){
+
+	echo "This is a script to help you find multiple directories or files that have been modified between a certain timeframe."
+
+	read -p "Directory to begin looking through: [/dir] " dir
+	read -p "Start date [YYYY-MM-DD]: " sd
+	read -p "End date   [YYYY-MM-DD]: " ed
+	read -p "Would you like to start with directories or files? [d/f]: " ftype
+
+	echo -e "\n\t\e[32mFiles/directories touched between $sd - $ed\e[39m\n"
+	find $dir -type $ftype -newermt "$sd" \! -newermt "$ed"
+
+	# if you begin searching directories, provide the option to 
+	# traverse through the touched directories 
+	if [ "$ftype" = "d" ]; then
+		traverse_options $dir $sd $ed
+	elif [ "$ftype" = "f" ]; then
+		echo -e "\n\t\e[5mContinue? [y/n] \e[0m"
+		read ans
+		if [ "$ans" = "y" ];then
+			traverse_options $dir $sd $ed
+		else
+			echo "goodbye"
+		fi
+	else
+		echo "goodbye"
+	fi
+}
+
+
+main 
