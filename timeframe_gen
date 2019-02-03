@@ -1,11 +1,10 @@
 #!/bin/bash
 set -e 
 
-# usage: bash timeframe image start_date end_date [type]
-#	date format: YYYY-MM-DD
-# type is optional, the default is file (f)
+# usage: bash timeframe
 
-# get files touched between a provided timeframe on a mounted image
+# get files touched between a provided timeframe in a given directory and optionally continue to traverse through
+# that directory or subdirectories
 
 traverse_options(){
 	echo -e "\n\t\e[32mContinue traversing? [y/n] \e[39m"
