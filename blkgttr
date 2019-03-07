@@ -1,0 +1,172 @@
+#!/bin/bash
+
+# a simple script to find different file systems from a disk image 
+
+# usage: bash blkgttr file
+if [ $# -ne 1 ]; then
+	echo "usage: bash blk_gutter file"
+	echo -e "\tfile: the file that contains the results sigfind"
+	exit
+fi
+
+# begin to caclulate the blocks from the file extracted with the sigfind command 
+# so we can see what file systems are on the disk image and begin to get an idea
+# of where they reside (offsets, superblock count, inodes, etc)
+calc_blocks() {
+	
+	file=$1
+	echo "processing $file"
+
+	# read the file into an array "lines" supported by bash 4+
+	readarray lines < $PWD/$file
+
+	# array of block bytes
+	blk_nums=()
+
+	# loop through the file and parse the data by space 
+	for blk in "${lines[@]}"
+	do
+		:
+		# save every line into an array separated by space
+		b=($blk)
+
+		# save the second value on the line (block size in bytes)
+		blk_nums+=(${b[1]})
+	done
+
+	# the file to write the results to 
+	b=$(basename $file)
+	out=$b.blks
+
+	echo -e "\nOffset options:"
+	echo -e "\t\e[36moption[1]: ext2, ext3, ext4 file systems (offset of 2)\e[39m"
+	echo -e "\t\e[35moption[2]: fat32, ntfs file system (no offset of 2)\e[39m\n"
+	read -p "option [1/2]: " choice
+
+	declare -A nodes
+
+	# loop through the array of block numbers and execute fsstat 
+	# to try and get the sector information 
+	for b in "${blk_nums[@]}"
+	do
+		:
+		# ensure the value is a number 
+		num_check='[0-9]+$'
+		if ! [[ $b =~ $num_check ]]; then
+			# not a number, skip this value
+			continue 
+		fi
+
+		if [ "$choice" -eq 1 ];then
+			# offset of 2
+			((y=$b-2))
+		else
+			y=$b
+		fi
+
+		# save the node to a file 
+		echo $y >> $out
+	
+		# execute fssat and redirect stdout and stderr to our file
+		if fsstat -o $y sda.dd >> $out 2>/dev/null; then  #2>&1
+			nodes["$y"]=""
+		fi
+	done
+
+	echo -e "\n\t\e[32mresults saved to $out\e[39m"
+
+	echo -e "\nShow file system stats? [y/n] "
+	read pa 
+
+	if [ "$pa" == "y" ]; then 
+		get_filesystems $out 
+		fs_extract $out
+		get_file_sys_info $out $nodes
+	elif [ "$pa" == "n" ]; then
+		echo "blkgttr complete"
+		exit
+	else 
+		echo "unknown option, exiting"
+		exit
+	fi
+}
+
+
+# get a count of the total file systems found 
+# please note that this isn't entirely accurate, as a file system that isn't corrupt
+# contains superblocks that have the title of their file system in the header 
+# this is a quick and dirty way to get and idea of what you're dealing with 
+get_filesystems(){
+	file=$1
+	ext2_cnt=$(grep -c -i "ext2" $file)
+	ext3_cnt=$(grep -c -i "ext3" $file)
+	ext4_cnt=$(grep -c -i "ext4" $file)
+	ntfs_cnt=$(grep -c -i "ntfs" $file)
+	fat_cnt=$(grep -c -i "*fat*" $file)
+	echo "$ext2_cnt ext2's found"
+	echo "$ext3_cnt ext3's found"
+	echo "$ext4_cnt ext4's found"
+	echo "$ntfs_cnt nfts' found"
+	echo "$fat_cnt fat's found"
+}
+
+# get the lines that contain file system information (including the block byte value)
+# and put this data into a large file for easy reading to make things nice 
+fs_extract(){
+	file=$1
+	ext2s=$(awk '/Ext2/{ print NR; "2\n3\n" }' $file)
+	ext3s=$(awk '/Ext3/{ print NR; exit }' $file)
+	ext4s=$(awk '/Ext4/{ print NR; exit }' $file)
+	fats=$(awk '/Fat*/{ print NR; exit }' $file)
+	ntfs=$(awk '/NTFS/{ print NR; exit }' $file)
+#	echo "${#ext2s[@]}"
+	#get_blk_groups $file "${ext2s[@]}"
+}
+
+get_file_sys_info(){
+	file=$1
+	nodes=$2
+	echo -e "\e[36m************** SECTORS *****************\e[39m"
+	for x in ${!nodes[@]}; do
+		echo "${x}" # ${nodes[${x}]}"
+	done
+	echo -e "\e[36m************** SECTORS *****************\e[39m"
+	read -p "File system type [ntfs/fat32/ext2/ext3/ext4]: " fstype
+	echo -e "\e[33m************** FILE SYS INFO *****************\e[39m"
+	grep -i -A6 -B3 -P "^file system type: $fstype" $file
+	echo -e "\e[33m************** FILE SYS INFO *****************\e[39m"
+}
+
+# get the number of block groups to caclulate false hits when getting blocks and offsets
+get_blk_groups(){
+	file=$1
+	array=$2
+	counter=0
+
+	echo "ARRAY LENGTH: ${#array[@]}"
+
+	while [ $counter -lt "${#array[@]}" ]; do
+		x="${array[$counter]}"
+		
+		# block numbers are stored approx 32 lines below the file system line
+		((offset=$x+32))
+
+		# grab entire line for false hits 
+		fh_line=$(sed -n '$offset p' $file)
+		
+		# caclulate number of false hits 
+		fh_num=$(grep -o -E "[0-9]+")
+		
+		echo "number of false hits: $fh_num"
+
+		# remove that number of values from array
+		n=("${array[@]:$x:$fh_num}")
+		
+		((counter=$counter+$fh_num))
+		#echo "$counter"
+	done
+	
+}
+
+#### main ####
+calc_blocks $1
