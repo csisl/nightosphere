@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# script to get all of the inodes for a specific file type and save the 
+# results into a file 
+
+if [ $# -ne 3 ]; then
+	echo -e "usage: bash par \e[35mimage.dd \e[32mfstype \e[34mftype\e[39m\n"
+	echo -e "\t\e[35mimage.dd\e[39m:\tthe image file we want to examine"
+	echo -e "\t\e[32mfstype\e[39m:\t\tthe type of file system we are looking at"
+	echo -e "\t\e[34mftype\e[39m:\t\tthe type of file we want to look for\n"
+	exit
+fi
+
+imgdd="$1"						# image we are carving from with dd extension
+fstype=$2						# the file system type 
+ftype=$3						# the type of files we want to find from the image
+
+img="${imgdd%%.*}"				# image we are carving without the dd extension (just the name)
+out="${img}_results_$ftype"		# text file to save the results to 
+dir="par_results/$img"			# directory to save the output to
+
+mkdir -p $dir
+
+echo -e "\e[32m\n\tGetting all inodes from $imgdd, file system type $fstype\e[39m\n"
+
+# get inodes
+inodes=()
+inodes+=($(fls -prF -f $fstype $imgdd | grep -Eo "([0-9]{1,10})"))
+
+# all of the inodes that match the specific file type we are looking for 
+hits=()
+
+echo -e "\n\e[32m\tLooking through $imgdd for files of type $ftype\e[39m\n"
+
+# go through all of the inodes and redirect the hits for the specific file type we
+# want to file to an output file
+for inode in "${inodes[@]}"; do
+	#echo "$inode" >> $out 
+	icat $imgdd $inode | file - | grep -Ei "$ftype" >> $dir/$out; if [ $? -ne 1 ]; then echo "$inode" >> $dir/$out; hits+=($inode); fi
+done 
+
+echo -e "\e[32m\n\tCarving all files of type $ftype via their inode....\e[39m\n"
+
+# go through the inodes that matched the file type and save those to a directory 
+for hit in "${hits[@]}"; do
+	icat $imgdd $hit > $dir/${hit}_$ftype
+done
+
+echo -e "PAR COMPLETE. Results saved to \e[34m$dir\e[39m"
