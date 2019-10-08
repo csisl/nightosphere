@@ -1,0 +1,63 @@
+#!/bin/bash
+
+# a basic script to create the bare bones of a kernel module for quick setup
+
+get_module_info(){
+	read -p "license: " license
+	#read -p "author: " author
+	author=$( whoami )
+	read -p "description: " description
+	read -p "version: " version
+}
+
+write_headers(){
+	echo "#include <linux/init.h>" > $module
+	echo "#include <linux/module.h>" >> $module
+	echo "#include <linux/kernel.h>" >> $module
+	echo "" >> $module
+}
+
+write_module_info(){
+	echo "MODULE_LICENSE(\"$license\");" >> $module
+	echo "MODULE_AUTHOR(\"$author\");" >> $module
+	echo "MODULE_DESCRIPTION(\"$description\");" >> $module
+	echo "MODULE_VERSION(\"$version\");" >> $module
+	echo "" >> $module
+}
+
+write_funcs(){
+	echo "static int __init load(void){" >> $module
+	echo -en "\treturn 0;\n}\n\n" >> $module
+	echo "static void __exit unload(void){" >> $module
+	echo -en "}\n\n" >> $module
+}
+
+write_module_handlers(){
+	echo "module_init(load);" >> $module
+	echo "module_exit(unload);" >> $module
+}
+
+create_makefile(){
+	echo "obj-m += $mod.o" > Makefile
+	echo "all:" >> Makefile
+	echo -en "\tmake -C /lib/modules/\$(shell uname -r)/build M=\$(PWD) modules\n" >> Makefile
+	echo "clean:" >> Makefile
+	echo -en "\tmake -C /lib/modules/\$(shell uname -r)/build M=\$(PWD) clean\n" >> Makefile
+}
+
+main(){
+	read -p "name of kernel module: " mod
+	module="$mod.c"
+	touch $module
+	get_module_info 
+	write_headers
+	write_module_info 
+	write_funcs
+	write_module_handlers 
+	echo "created $module"
+	create_makefile
+	echo "created makefile"
+}
+
+main
+
